@@ -69,28 +69,28 @@ class ELKDevice:
         return target_devices
 
     @staticmethod
-    def power_on(client: BleakClient):
-        client.write_gatt_char('0000fff3-0000-1000-8000-00805f9b34fb', b'\x7e\x00\x04\xf0\x00\x01\xff\x00\xef')
+    async def power_on(client: BleakClient):
+        await client.write_gatt_char('0000fff3-0000-1000-8000-00805f9b34fb', b'\x7e\x00\x04\xf0\x00\x01\xff\x00\xef')
 
     @staticmethod
-    def power_off(client: BleakClient):
-        client.write_gatt_char('0000fff3-0000-1000-8000-00805f9b34fb', b'\x7e\x00\x04\x00\x00\x00\xff\x00\xee')
+    async def power_off(client: BleakClient):
+        await client.write_gatt_char('0000fff3-0000-1000-8000-00805f9b34fb', b'\x7e\x00\x04\x00\x00\x00\xff\x00\xee')
 
     @staticmethod
-    def set_brightness(client: BleakClient, brightness: int):
+    async def set_brightness(client: BleakClient, brightness: int):
         command = b'\x7e\x00\x01'
         command += bytes([min(brightness, 0x64)])
         command += b'\x00\x00\x00\x00\xef'
 
-        client.write_gatt_char('0000fff3-0000-1000-8000-00805f9b34fb', command)
+        await client.write_gatt_char('0000fff3-0000-1000-8000-00805f9b34fb', command)
 
     @staticmethod
-    def set_color(client: BleakClient, r: int, g: int, b: int):
+    async def set_color(client: BleakClient, r: int, g: int, b: int):
         command = b'\x7e\x00\x05\x03'
         command += bytes([r, g, b])
         command += b'\x00\xef'
 
-        client.write_gatt_char('0000fff3-0000-1000-8000-00805f9b34fb', command)
+        await client.write_gatt_char('0000fff3-0000-1000-8000-00805f9b34fb', command)
 
     @staticmethod
     async def set_effect(client: BleakClient, effect: bytes):
