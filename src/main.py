@@ -6,7 +6,7 @@ from prompt_toolkit.completion import NestedCompleter
 from prompt_toolkit.history import InMemoryHistory
 
 from audio import Audio
-from elkble import ELKDevice, Effects
+from elkble import ELKDevice, Effects, DynamicModes
 
 week_days = {
     'monday': None,
@@ -36,6 +36,12 @@ class CLI:
         'color': None,
         'connect': None,
         'disconnect': None,
+        'dynamic': {
+            'colorful': None,
+            'beat_on': None,
+            'beat_color': None,
+            'beat_on_fast': None,
+        },
         'effect': {
             'red': None,
             'blue': None,
@@ -127,8 +133,8 @@ class CLI:
 
         if len(cmd_parts) == 0:
             print(
-                "Available commands: add, autoconnect, brightness, color, connect, disconnect, effect, exit, live, "
-                "power, schedule, search, speed, time")
+                "Available commands: add, autoconnect, brightness, color, connect, disconnect, dynamic, effect, exit, "
+                "live, power, schedule, search, speed, time")
 
         if cmd_parts[0] == "power":
             if len(cmd_parts) != 2 and len(cmd_parts) != 3:
@@ -178,6 +184,24 @@ class CLI:
                 await self.device.set_effect(self.device.clients[int(cmd_parts[2])], effect)
             else:
                 print("Invalid effect command. Usage: effect <effect_name>")
+        elif cmd_parts[0] == "dynamic":
+            if len(cmd_parts) == 2:
+                try:
+                    dynamic = DynamicModes.from_string(cmd_parts[1])
+                except AttributeError:
+                    print("Invalid dynamic name. Possible dynamics: " + str(DynamicModes.to_list()))
+                    return
+                for client in self.device.clients:
+                    await self.device.set_dynamic(client, dynamic)
+            elif len(cmd_parts) == 3:
+                try:
+                    dynamic = DynamicModes.from_string(cmd_parts[1])
+                except AttributeError:
+                    print("Invalid dynamic name. Possible dynamics: " + str(DynamicModes.to_list()))
+                    return
+                await self.device.set_dynamic(self.device.clients[int(cmd_parts[2])], dynamic)
+            else:
+                print("Invalid dynamic command. Usage: dynamic <dynamic_name>")
         elif cmd_parts[0] == "speed":
             if len(cmd_parts) == 2:
                 for client in self.device.clients:

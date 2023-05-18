@@ -65,6 +65,21 @@ class Days:
         return [attr for attr in dir(cls) if not callable(getattr(cls, attr)) and not attr.startswith("__")]
 
 
+class DynamicModes:
+    colorful = b'\x80'
+    beat_on = b'\x81'
+    beat_color = b'\x82'
+    beat_on_fast = b'\x83'
+
+    @classmethod
+    def from_string(cls, string: str) -> bytes:
+        return getattr(cls, string)
+
+    @classmethod
+    def to_list(cls) -> list[str]:
+        return [attr for attr in dir(cls) if not callable(getattr(cls, attr)) and not attr.startswith("__")]
+
+
 class ELKDevice:
     device_address = []
     clients: list[BleakClient] = []
@@ -166,6 +181,14 @@ class ELKDevice:
         command += b'\x00\x01'
         command += value
         command += b'\xef'
+
+        await client.write_gatt_char(CHARACTERISTIC_UUID, command)
+
+    @staticmethod
+    async def set_dynamic(client: BleakClient, mode: bytes):
+        command = b'\x7e\x00\x03'
+        command += mode
+        command += b'\x04\x00\x00\x00\xef'
 
         await client.write_gatt_char(CHARACTERISTIC_UUID, command)
 
