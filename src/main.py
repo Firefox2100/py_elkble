@@ -1,11 +1,16 @@
 import asyncio
 from elkble import ELKDevice, Effects
 from audio import Audio
+from prompt_toolkit import PromptSession
+from prompt_toolkit.history import InMemoryHistory
+
+history = InMemoryHistory()
+session = PromptSession(history=history)
 
 
 async def async_input(prompt: str = ""):
     loop = asyncio.get_event_loop()
-    return await loop.run_in_executor(None, input, prompt)
+    return await loop.run_in_executor(None, session.prompt, prompt)
 
 
 class CLI:
