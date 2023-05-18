@@ -1,16 +1,26 @@
 import asyncio
-from elkble import ELKDevice, Effects
-from audio import Audio
+from datetime import datetime
+
 from prompt_toolkit import PromptSession
+from prompt_toolkit.completion import NestedCompleter
 from prompt_toolkit.history import InMemoryHistory
 
-history = InMemoryHistory()
-session = PromptSession(history=history)
+from audio import Audio
+from elkble import ELKDevice, Effects
 
-
-async def async_input(prompt: str = ""):
-    loop = asyncio.get_event_loop()
-    return await loop.run_in_executor(None, session.prompt, prompt)
+week_days = {
+    'monday': None,
+    'tuesday': None,
+    'wednesday': None,
+    'thursday': None,
+    'friday': None,
+    'saturday': None,
+    'sunday': None,
+    'all': None,
+    'week_days': None,
+    'weekend_days': None,
+    'none': None,
+}
 
 
 class CLI:
@@ -18,21 +28,90 @@ class CLI:
     audio = Audio()
     live_task = None
     tasks = []
+    history = InMemoryHistory()
+    completer = NestedCompleter.from_nested_dict({
+        'add': None,
+        'autoconnect': None,
+        'brightness': None,
+        'color': None,
+        'connect': None,
+        'disconnect': None,
+        'effect': {
+            'red': None,
+            'blue': None,
+            'green': None,
+            'cyan': None,
+            'yellow': None,
+            'magenta': None,
+            'white': None,
+            'jump_rgb': None,
+            'jump_rgbycmw': None,
+            'gradient_rgb': None,
+            'gradient_rgbycmw': None,
+            'gradient_r': None,
+            'gradient_g': None,
+            'gradient_b': None,
+            'gradient_y': None,
+            'gradient_c': None,
+            'gradient_m': None,
+            'gradient_w': None,
+            'gradient_rg': None,
+            'gradient_rb': None,
+            'gradient_gb': None,
+            'blink_rgbycmw': None,
+            'blink_r': None,
+            'blink_g': None,
+            'blink_b': None,
+            'blink_y': None,
+            'blink_c': None,
+            'blink_m': None,
+            'blink_w': None,
+        },
+        'exit': None,
+        'live': {
+            'start': None,
+            'stop': None,
+        },
+        'power': {
+            'on': None,
+            'off': None,
+        },
+        'schedule': {
+            'on': {
+                'enable': week_days,
+                'disable': week_days,
+            },
+            'off': {
+                'enable': week_days,
+                'disable': week_days,
+            },
+        },
+        'search': None,
+        'speed': None,
+        'time': None,
+    })
+    session = PromptSession(
+        history=history,
+        completer=completer,
+    )
 
     async def process_input(self):
         while True:
-            cmd = await async_input('> ')
+            cmd = await self.session.prompt_async('> ')
             await self.process_command(cmd)
 
-    async def audio_to_rgb(self):
+    async def audio_to_rgb(self, device_index=None):
         try:
             loop = asyncio.get_event_loop()
             self.audio.open()
             while True:
                 audio_data = await loop.run_in_executor(None, self.audio.get_audio)
                 r, g, b = Audio.audio_to_rgb(audio_data)
-                for client in self.device.clients:
-                    await self.device.set_color(client, r, g, b)
+                if device_index is None:
+                    for client in self.device.clients:
+                        await self.device.set_color(client, r, g, b)
+                else:
+                    await self.device.set_color(self.device.clients[device_index], r, g, b)
                 await asyncio.sleep(0.1)
         except asyncio.CancelledError:
             pass
@@ -47,8 +126,9 @@ class CLI:
         cmd_parts = cmd.split()
 
         if len(cmd_parts) == 0:
-            print("Available commands: power, brightness, color, live, search, connect, autoconnect, disconnect, add, "
-                  "exit")
+            print(
+                "Available commands: add, autoconnect, brightness, color, connect, disconnect, effect, exit, live, "
+                "power, schedule, search, speed, time")
 
         if cmd_parts[0] == "power":
             if len(cmd_parts) != 2 and len(cmd_parts) != 3:
@@ -76,7 +156,8 @@ class CLI:
                 for client in self.device.clients:
                     await self.device.set_color(client, int(cmd_parts[1]), int(cmd_parts[2]), int(cmd_parts[3]))
             elif len(cmd_parts) == 5:
-                await self.device.set_color(self.device.clients[int(cmd_parts[4])], int(cmd_parts[1]), int(cmd_parts[2]), int(cmd_parts[3]))
+                await self.device.set_color(self.device.clients[int(cmd_parts[4])], int(cmd_parts[1]),
+                                            int(cmd_parts[2]), int(cmd_parts[3]))
             else:
                 print("Invalid color command. Usage: color <r> <g> <b> [device_index]")
         elif cmd_parts[0] == "effect":
@@ -88,8 +169,23 @@ class CLI:
                     return
                 for client in self.device.clients:
                     await self.device.set_effect(client, effect)
+            elif len(cmd_parts) == 3:
+                try:
+                    effect = Effects.from_string(cmd_parts[1])
+                except AttributeError:
+                    print("Invalid effect name. Possible effects: " + str(Effects.to_list()))
+                    return
+                await self.device.set_effect(self.device.clients[int(cmd_parts[2])], effect)
             else:
                 print("Invalid effect command. Usage: effect <effect_name>")
+        elif cmd_parts[0] == "speed":
+            if len(cmd_parts) == 2:
+                for client in self.device.clients:
+                    await self.device.set_effect_speed(client, int(cmd_parts[1]))
+            elif len(cmd_parts) == 3:
+                await self.device.set_effect_speed(self.device.clients[int(cmd_parts[2])], int(cmd_parts[1]))
+            else:
+                print("Invalid speed command. Usage: speed <speed> [device_index]")
         elif cmd_parts[0] == "brightness":
             if len(cmd_parts) == 2:
                 for client in self.device.clients:
@@ -105,6 +201,52 @@ class CLI:
         elif cmd_parts[0] == 'add':
             for address in cmd_parts[1:]:
                 self.device.add_address(address)
+        elif cmd_parts[0] == 'time':
+            if len(cmd_parts) == 2:
+                if cmd_parts[1] == 'now':
+                    now = datetime.now()
+                    for client in self.device.clients:
+                        await self.device.set_time(client, now.hour, now.minute, now.second, now.weekday() + 1)
+                else:
+                    print("Invalid time command. Usage: time <time in h m s d|now> [device_index]")
+            elif len(cmd_parts) == 3:
+                if cmd_parts[1] == 'now':
+                    now = datetime.now()
+                    await self.device.set_time(self.device.clients[int(cmd_parts[2])], now.hour, now.minute,
+                                               now.second, now.weekday() + 1)
+            elif len(cmd_parts) == 5:
+                for client in self.device.clients:
+                    await self.device.set_time(client, int(cmd_parts[1]), int(cmd_parts[2]), int(cmd_parts[3]),
+                                               int(cmd_parts[4]))
+            elif len(cmd_parts) == 6:
+                await self.device.set_time(self.device.clients[int(cmd_parts[5])], int(cmd_parts[1]), int(cmd_parts[2]),
+                                           int(cmd_parts[3]), int(cmd_parts[4]))
+            else:
+                print("Invalid time command. Usage: time <time in h m s d|now> [device_index]")
+        elif cmd_parts[0] == 'schedule':
+            if len(cmd_parts) == 6:
+                if cmd_parts[1] == 'on':
+                    for client in self.device.clients:
+                        await self.device.set_schedule_on(client, cmd_parts[3], int(cmd_parts[4]), int(cmd_parts[5]),
+                                                          cmd_parts[2] == 'enabled')
+                elif cmd_parts[1] == 'off':
+                    for client in self.device.clients:
+                        await self.device.set_schedule_off(client, cmd_parts[3], int(cmd_parts[4]), int(cmd_parts[5]),
+                                                           cmd_parts[2] == 'enabled')
+                else:
+                    print(
+                        "Invalid schedule command. Usage: schedule <on|off> <enabled|disabled> <days> <h> <m> ["
+                        "device_index]")
+            elif len(cmd_parts) == 7:
+                if cmd_parts[1] == 'on':
+                    await self.device.set_schedule_on(self.device.clients[int(cmd_parts[6])], cmd_parts[3],
+                                                      int(cmd_parts[4]), int(cmd_parts[5]), cmd_parts[2] == 'enabled')
+                elif cmd_parts[1] == 'off':
+                    await self.device.set_schedule_off(self.device.clients[int(cmd_parts[6])], cmd_parts[3],
+                                                       int(cmd_parts[4]), int(cmd_parts[5]), cmd_parts[2] == 'enabled')
+                else:
+                    print("Invalid schedule command. Usage: schedule <on|off> <enabled|disabled> <days> <h> <m> ["
+                          "device_index]")
         elif cmd_parts[0] == 'search':
             devices = await self.device.search()
             for i, dev in enumerate(devices):
@@ -116,11 +258,28 @@ class CLI:
                 print(f"Added {dev.address} to autoconnect list.")
             await self.device.connect()
         elif cmd_parts[0] == 'live':
-            self.live_task = asyncio.create_task(self.audio_to_rgb())
-            self.tasks.append(self.live_task)
-        elif cmd_parts[0] == 'stop':
-            self.live_task.cancel()
-            await self.live_task
+            if len(cmd_parts) == 2:
+                if cmd_parts[1] == 'start':
+                    self.live_task = asyncio.create_task(self.audio_to_rgb())
+                    self.tasks.append(self.live_task)
+                elif cmd_parts[1] == 'stop':
+                    self.live_task.cancel()
+                    await self.live_task
+                    self.tasks.remove(self.live_task)
+                    self.live_task = None
+                else:
+                    print("Invalid command. Usage: live <start|stop> [device_index]")
+            elif len(cmd_parts) == 3:
+                if cmd_parts[1] == 'start':
+                    self.live_task = asyncio.create_task(self.audio_to_rgb(int(cmd_parts[2])))
+                    self.tasks.append(self.live_task)
+                elif cmd_parts[1] == 'stop':
+                    self.live_task.cancel()
+                    await self.live_task
+                    self.tasks.remove(self.live_task)
+                    self.live_task = None
+                else:
+                    print("Invalid command. Usage: live <start|stop> [device_index]")
         elif cmd_parts[0] == 'exit':
             await self.device.disconnect()
             exit(0)
