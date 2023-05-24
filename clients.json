@@ -1,0 +1,29 @@
+{
+    "clients": [
+        {
+            "id": 0,
+            "name": "Thomas",
+            "mac": "BE:59:1C:01:18:51"
+        },
+        {
+            "id": 1,
+            "name": "Rene",
+            "mac": "BE:59:2B:01:22:53"
+        },
+        {
+            "id": 2,
+            "name": "Patrick",
+            "mac": "BE:59:1C:00:10:D3"
+        },
+        {
+            "id": 3,
+            "name": "Greg",
+            "mac": "BE:59:1C:00:02:BB"
+        },
+        {
+            "id": 4,
+            "name": "Room",
+            "mac": "BE:59:74:00:9D:6E"
+        }
+    ]
+}

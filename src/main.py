@@ -1,4 +1,5 @@
 import asyncio
+import json
 from datetime import datetime
 
 from prompt_toolkit import PromptSession
@@ -28,8 +29,9 @@ class CLI:
     audio = Audio()
     live_task = None
     tasks = []
+    clients = []
     history = InMemoryHistory()
-    completer = NestedCompleter.from_nested_dict({
+    nested_dict = {
         'add': None,
         'autoconnect': None,
         'brightness': None,
@@ -95,11 +97,24 @@ class CLI:
         'search': None,
         'speed': None,
         'time': None,
-    })
-    session = PromptSession(
-        history=history,
-        completer=completer,
-    )
+    }
+
+    def __init__(self):
+        config = json.load(open('../clients.json'))
+        for client in config['clients']:
+            self.clients.append(client)
+        if len(self.clients) != 0:
+            name_dic = {client['name']: None for client in self.clients}
+            for key in self.nested_dict['dynamic']:
+                self.nested_dict['dynamic'][key] = name_dic
+            for key in self.nested_dict['effect']:
+                self.nested_dict['effect'][key] = name_dic
+
+        self.completer = NestedCompleter.from_nested_dict(self.nested_dict)
+        self.session = PromptSession(
+            history=self.history,
+            completer=self.completer,
+        )
 
     async def process_input(self):
         while True:
@@ -144,7 +159,11 @@ class CLI:
                     for client in self.device.clients:
                         await self.device.power_on(client)
                 elif len(cmd_parts) == 3:
-                    await self.device.power_on(self.device.clients[int(cmd_parts[2])])
+                    names = [client['name'] for client in self.clients]
+                    if cmd_parts[2] in names:
+                        await self.device.power_on(self.device.clients[self.clients[names.index(cmd_parts[2])]['id']])
+                    else:
+                        await self.device.power_on(self.device.clients[int(cmd_parts[2])])
                 else:
                     print("Invalid power command. Usage: power on [device_index]")
             elif cmd_parts[1] == "off":
@@ -152,7 +171,11 @@ class CLI:
                     for client in self.device.clients:
                         await self.device.power_off(client)
                 elif len(cmd_parts) == 3:
-                    await self.device.power_off(self.device.clients[int(cmd_parts[2])])
+                    names = [client['name'] for client in self.clients]
+                    if cmd_parts[2] in names:
+                        await self.device.power_off(self.device.clients[self.clients[names.index(cmd_parts[2])]['id']])
+                    else:
+                        await self.device.power_off(self.device.clients[int(cmd_parts[2])])
                 else:
                     print("Invalid power command. Usage: power off [device_index]")
             else:
@@ -162,8 +185,13 @@ class CLI:
                 for client in self.device.clients:
                     await self.device.set_color(client, int(cmd_parts[1]), int(cmd_parts[2]), int(cmd_parts[3]))
             elif len(cmd_parts) == 5:
-                await self.device.set_color(self.device.clients[int(cmd_parts[4])], int(cmd_parts[1]),
-                                            int(cmd_parts[2]), int(cmd_parts[3]))
+                names = [client['name'] for client in self.clients]
+                if cmd_parts[2] in names:
+                    await self.device.set_color(self.device.clients[self.clients[names.index(cmd_parts[2])]['id']],
+                                                int(cmd_parts[1]), int(cmd_parts[2]), int(cmd_parts[3]))
+                else:
+                    await self.device.set_color(self.device.clients[int(cmd_parts[4])], int(cmd_parts[1]),
+                                                int(cmd_parts[2]), int(cmd_parts[3]))
             else:
                 print("Invalid color command. Usage: color <r> <g> <b> [device_index]")
         elif cmd_parts[0] == "effect":
@@ -181,7 +209,12 @@ class CLI:
                 except AttributeError:
                     print("Invalid effect name. Possible effects: " + str(Effects.to_list()))
                     return
-                await self.device.set_effect(self.device.clients[int(cmd_parts[2])], effect)
+                names = [client['name'] for client in self.clients]
+                if cmd_parts[2] in names:
+                    await self.device.set_effect(self.device.clients[self.clients[names.index(cmd_parts[2])]['id']],
+                                                 effect)
+                else:
+                    await self.device.set_effect(self.device.clients[int(cmd_parts[2])], effect)
             else:
                 print("Invalid effect command. Usage: effect <effect_name>")
         elif cmd_parts[0] == "dynamic":
@@ -199,7 +232,11 @@ class CLI:
                 except AttributeError:
                     print("Invalid dynamic name. Possible dynamics: " + str(DynamicModes.to_list()))
                     return
-                await self.device.set_dynamic(self.device.clients[int(cmd_parts[2])], dynamic)
+                names = [client['name'] for client in self.clients]
+                if cmd_parts[2] in names:
+                    await self.device.set_dynamic(self.device.clients[self.clients[names.index(cmd_parts[2])]['id']], dynamic)
+                else:
+                    await self.device.set_dynamic(self.device.clients[int(cmd_parts[2])], dynamic)
             else:
                 print("Invalid dynamic command. Usage: dynamic <dynamic_name>")
         elif cmd_parts[0] == "speed":
@@ -207,7 +244,12 @@ class CLI:
                 for client in self.device.clients:
                     await self.device.set_effect_speed(client, int(cmd_parts[1]))
             elif len(cmd_parts) == 3:
-                await self.device.set_effect_speed(self.device.clients[int(cmd_parts[2])], int(cmd_parts[1]))
+                names = [client['name'] for client in self.clients]
+                if cmd_parts[2] in names:
+                    await self.device.set_effect_speed(self.device.clients[self.clients[names.index(cmd_parts[2])]['id']],
+                                                  int(cmd_parts[1]))
+                else:
+                    await self.device.set_effect_speed(self.device.clients[int(cmd_parts[2])], int(cmd_parts[1]))
             else:
                 print("Invalid speed command. Usage: speed <speed> [device_index]")
         elif cmd_parts[0] == "brightness":
@@ -215,7 +257,12 @@ class CLI:
                 for client in self.device.clients:
                     await self.device.set_brightness(client, int(cmd_parts[1]))
             elif len(cmd_parts) == 3:
-                await self.device.set_brightness(self.device.clients[int(cmd_parts[2])], int(cmd_parts[1]))
+                names = [client['name'] for client in self.clients]
+                if cmd_parts[2] in names:
+                    await self.device.set_brightness(self.device.clients[self.clients[names.index(cmd_parts[2])]['id']],
+                                                  int(cmd_parts[1]))
+                else:
+                    await self.device.set_brightness(self.device.clients[int(cmd_parts[2])], int(cmd_parts[1]))
             else:
                 print("Invalid brightness command. Usage: brightness <brightness> [device_index]")
         elif cmd_parts[0] == 'connect':
@@ -281,6 +328,10 @@ class CLI:
                 self.device.add_address(dev.address)
                 print(f"Added {dev.address} to autoconnect list.")
             await self.device.connect()
+            if len(self.clients) != 0:
+                for client in self.clients:
+                    client['id'] = self.device.device_address.index(client['mac']) if client[
+                                                                                          'mac'] in self.device.device_address else -1
         elif cmd_parts[0] == 'live':
             if len(cmd_parts) == 2:
                 if cmd_parts[1] == 'start':
