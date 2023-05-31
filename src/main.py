@@ -366,8 +366,7 @@ class CLI:
 
 
 if __name__ == '__main__':
-    # cli = CLI()
-    gui = GUI()
+    cli = CLI()
+    gui = GUI(cli)
     os.environ["QT_AUTO_SCREEN_SCALE_FACTOR"] = "1"
     gui.open()
-    # asyncio.run(cli.run())

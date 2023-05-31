@@ -1,10 +1,9 @@
-from PyQt5.QtCore import Qt
 from PyQt5 import uic
+from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QApplication, QDialog, QVBoxLayout, QLabel
 
-
 class GUI:
-    def __init__(self):
+    def __init__(self, cli):
         self.Form, self.Window = uic.loadUiType("res/GUI.ui")
         QApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True)
         self.app = QApplication([])
@@ -16,6 +15,7 @@ class GUI:
         self.__setup_interface()
         # Assign event handlers
         self.__add_handlers()
+        self.cli = cli
 
     def center(self):
         frame_gm = self.window.frameGeometry()
