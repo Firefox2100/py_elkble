@@ -1,5 +1,8 @@
 import asyncio
 import json
+import os
+
+from GUI import GUI
 from datetime import datetime
 
 from prompt_toolkit import PromptSession
@@ -363,5 +366,8 @@ class CLI:
 
 
 if __name__ == '__main__':
-    cli = CLI()
-    asyncio.run(cli.run())
+    # cli = CLI()
+    gui = GUI()
+    os.environ["QT_AUTO_SCREEN_SCALE_FACTOR"] = "1"
+    gui.open()
+    # asyncio.run(cli.run())
